@@ -15,7 +15,7 @@ Below is an exhaustive enumeration of all configurable parameters available, eac
 | CONNECTOR_NAME | `string` |  | string | `"TheHive"` | The name of the connector. |  |
 | CONNECTOR_LOG_LEVEL | `string` |  | `debug` `info` `warn` `warning` `error` | `"error"` | The minimum level of logs to display. |  |
 | CONNECTOR_TYPE | `const` |  | `EXTERNAL_IMPORT` | `"EXTERNAL_IMPORT"` |  |  |
-| CONNECTOR_DURATION_PERIOD | `string` |  | Format: [`duration`](https://json-schema.org/understanding-json-schema/reference/string#built-in-formats) | `"PT5M"` | Period of time to await between two runs of the connector (ISO-8601). Currently informational: scheduling still uses 'thehive.interval' (minutes); this becomes the scheduling source in a future version. |  |
+| CONNECTOR_DURATION_PERIOD | `string` |  | Format: [`duration`](https://json-schema.org/understanding-json-schema/reference/string#built-in-formats) | `"PT5M"` | Period of time to await between two runs of the connector (ISO-8601). If not explicitly set, the connector falls back to 'thehive.interval' (minutes) for backward compatibility. |  |
 | THEHIVE_CHECK_SSL | `boolean` |  | boolean | `true` | Whether to verify TheHive's TLS certificate. |  |
 | THEHIVE_IMPORT_FROM_DATE | `string` |  | string | `null` | Earliest creation/update date to import from, as an ISO-8601 datetime (e.g. '2021-01-01T00:00:00'). Defaults to the connector's first start time. | ```2021-01-01T00:00:00``` |
 | THEHIVE_IMPORT_ONLY_TLP | `array` |  | string | `["0", "1", "2", "3", "4"]` | Comma-separated TheHive TLP levels (0-4) to import. | ```0,1,2,3,4``` |

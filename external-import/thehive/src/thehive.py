@@ -675,31 +675,45 @@ class TheHive:
 
         return processed_attachments, opencti_files
 
-    def run(self):
-        """Function to process cases, alerts, and pause based on provided interval."""
+    def process_message(self):
+        """Single connector run: fetch cases and alerts, convert to STIX, send to
+        OpenCTI. Invoked by the scheduler; the scheduling cadence and the
+        run-and-terminate lifecycle are handled by `schedule_process`."""
+        self.helper.log_info("Starting TheHive Connector run...")
+        try:
+            self.current_state = self.helper.get_state() or {}
+            self.helper.log_info(f"Current State: {self.current_state}")
+            self.process_logic("case", "last_case_date", self.generate_case_bundle)
+            if self.thehive_import_alerts:
+                self.process_logic(
+                    "alert", "last_alert_date", self.generate_alert_bundle
+                )
+        except (KeyboardInterrupt, SystemExit):
+            self.helper.log_info("Connector stop")
+            sys.exit(0)
+        except Exception as e:
+            self.helper.log_error(f"Error occurred: {str(e)}")
+            traceback.print_exc()
 
-        # Main connector loop — fetches cases and alerts, converts to STIX, sends to OpenCTI.
-        while True:
-            self.helper.log_info("Starting TheHive Connector run loop...")
-            try:
-                self.current_state = self.helper.get_state() or {}
-                self.helper.log_info(f"Current State: {self.current_state}")
-                self.process_logic("case", "last_case_date", self.generate_case_bundle)
-                if self.thehive_import_alerts:
-                    self.process_logic(
-                        "alert", "last_alert_date", self.generate_alert_bundle
-                    )
-            except (KeyboardInterrupt, SystemExit):
-                self.helper.log_info("Connector stop")
-                sys.exit(0)
-            except Exception as e:
-                self.helper.log_error(f"Error occurred: {str(e)}")
-                traceback.print_exc()
-            if self.helper.connect_run_and_terminate:
-                self.helper.log_info("Connector stop")
-                self.helper.force_ping()
-                sys.exit(0)
-            self.helper.log_info(
-                f"End of current run loop, running next interval in {self.get_interval()} second(s)."
-            )
-            time.sleep(self.get_interval())
+    def _scheduling_period_seconds(self):
+        """Resolve the scheduling period in seconds.
+
+        Honor `CONNECTOR_DURATION_PERIOD` when it is explicitly configured;
+        otherwise fall back to the legacy `THEHIVE_INTERVAL` (minutes) so existing
+        deployments keep their configured cadence.
+        """
+        if "duration_period" in self.config.connector.model_fields_set:
+            return self.config.connector.duration_period.total_seconds()
+        return self.get_interval()
+
+    def run(self):
+        """Start the connector with scheduled execution.
+
+        The scheduler owns the run loop and the run-and-terminate lifecycle
+        (including flushing state via `force_ping` before exit), so no manual
+        loop or `time.sleep` is needed here.
+        """
+        self.helper.schedule_process(
+            message_callback=self.process_message,
+            duration_period=self._scheduling_period_seconds(),
+        )

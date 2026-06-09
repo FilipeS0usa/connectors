@@ -45,7 +45,7 @@
     },
     "CONNECTOR_DURATION_PERIOD": {
       "default": "PT5M",
-      "description": "Period of time to await between two runs of the connector (ISO-8601). Currently informational: scheduling still uses 'thehive.interval' (minutes); this becomes the scheduling source in a future version.",
+      "description": "Period of time to await between two runs of the connector (ISO-8601). If not explicitly set, the connector falls back to 'thehive.interval' (minutes) for backward compatibility.",
       "format": "duration",
       "type": "string"
     },

@@ -1,5 +1,6 @@
 import time
 import unittest
+from datetime import timedelta
 from unittest.mock import MagicMock, patch, sentinel
 
 import thehive as module
@@ -7,7 +8,7 @@ import thehive as module
 
 def _make_config():
     """Build a lightweight stand-in for `ConnectorSettings` exposing the `thehive`
-    attributes that `TheHive.__init__` reads."""
+    and `connector` attributes that `TheHive` reads."""
     config = MagicMock()
     thehive = config.thehive
     thehive.url = "https://thehive.test"
@@ -30,6 +31,10 @@ def _make_config():
     thehive.user_mapping = []
     thehive.case_tag_whitelist = []
     thehive.interval = 5
+    # Connector section: by default duration_period is not explicitly set, so the
+    # connector falls back to thehive.interval for scheduling.
+    config.connector.duration_period = timedelta(minutes=5)
+    config.connector.model_fields_set = set()
     return config
 
 
@@ -54,6 +59,32 @@ class TheHiveTest(unittest.TestCase):
         # severity_mapping string pairs are parsed into a {level: label} dict
         self.assertEqual(_connector.severity_mapping[1], "01 - low")
         self.assertEqual(_connector.severity_mapping[4], "04 - critical")
+
+    def test_run_uses_explicit_duration_period(self, m_thehiveapi):
+        """When CONNECTOR_DURATION_PERIOD is explicitly set, it drives scheduling."""
+        config = _make_config()
+        config.connector.model_fields_set = {"duration_period"}
+        config.connector.duration_period = timedelta(minutes=10)
+        _connector = module.TheHive(config=config, helper=MagicMock())
+
+        _connector.run()
+
+        _connector.helper.schedule_process.assert_called_once()
+        _, kwargs = _connector.helper.schedule_process.call_args
+        self.assertEqual(kwargs["duration_period"], 600)
+        self.assertEqual(kwargs["message_callback"], _connector.process_message)
+
+    def test_run_falls_back_to_interval(self, m_thehiveapi):
+        """Without an explicit duration_period, scheduling uses THEHIVE_INTERVAL (minutes)."""
+        config = _make_config()
+        config.connector.model_fields_set = set()
+        config.thehive.interval = 30
+        _connector = module.TheHive(config=config, helper=MagicMock())
+
+        _connector.run()
+
+        _, kwargs = _connector.helper.schedule_process.call_args
+        self.assertEqual(kwargs["duration_period"], 1800)
 
     def test_process_comments_simple(self, m_thehiveapi):
         """testing the calls made to hive API by the process_comments function"""

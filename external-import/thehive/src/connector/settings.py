@@ -26,8 +26,8 @@ class _TheHiveConnectorConfig(BaseExternalImportConnectorConfig):
     duration_period: timedelta = Field(
         description=(
             "Period of time to await between two runs of the connector (ISO-8601). "
-            "Currently informational: scheduling still uses 'thehive.interval' (minutes); "
-            "this becomes the scheduling source in a future version."
+            "If not explicitly set, the connector falls back to 'thehive.interval' "
+            "(minutes) for backward compatibility."
         ),
         default=timedelta(minutes=5),
     )
